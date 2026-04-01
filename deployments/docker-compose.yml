@@ -1,0 +1,29 @@
+services:
+#  mysql:
+#    image: mysql:8.0
+#    container_name: washer-mysql
+#    restart: always
+#    environment:
+#      MYSQL_ROOT_PASSWORD: rootpassword
+#      MYSQL_DATABASE: smart_washer_db
+#      MYSQL_USER: smart_washer
+#      MYSQL_PASSWORD: smart_washer_password
+#    ports:
+#      - "3306:3306"
+#    volumes:
+#      - mysql_data:/var/lib/mysql
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: washer-mqtt
+    restart: always
+    ports:
+      - "1883:1883" # Default MQTT port
+      - "9001:9001" # WebSockets port (opsional jika dibutuhkan)
+
+    volumes:
+      # Mount file konfigurasi yang baru saja kita buat
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+#volumes:
+#  mysql_data:
