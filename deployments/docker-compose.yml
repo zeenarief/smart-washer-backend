@@ -1,17 +1,22 @@
 services:
-#  mysql:
-#    image: mysql:8.0
-#    container_name: washer-mysql
-#    restart: always
-#    environment:
-#      MYSQL_ROOT_PASSWORD: rootpassword
-#      MYSQL_DATABASE: smart_washer_db
-#      MYSQL_USER: smart_washer
-#      MYSQL_PASSWORD: smart_washer_password
-#    ports:
-#      - "3306:3306"
-#    volumes:
-#      - mysql_data:/var/lib/mysql
+  db-washer:
+    image: mariadb:10.6
+    container_name: washer-db
+    restart: always
+    env_file:
+      - ../.env
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASS}
+    ports:
+      - "3307:3306" # Gunakan 3307 di host agar tidak bentrok dengan MariaDB lama (jika masih ada)
+    volumes:
+      # PENTING: Agar data tidak hilang saat container dihapus
+      - washer_db_data:/var/lib/mysql
+    networks:
+      - washer_net
 
   mosquitto:
     image: eclipse-mosquitto:latest
@@ -19,11 +24,37 @@ services:
     restart: always
     ports:
       - "1883:1883" # Default MQTT port
-      - "9001:9001" # WebSockets port (opsional jika dibutuhkan)
+      - "9001:9001" # WebSockets port
 
     volumes:
-      # Mount file konfigurasi yang baru saja kita buat
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+      - ./mosquitto/pwfile:/mosquitto/config/pwfile
+    networks:
+      - washer_net
 
-#volumes:
-#  mysql_data:
+  smart-washer-be:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    container_name: smart-washer-be
+    restart: always
+    ports:
+      - "8082:8080"
+    env_file:
+      - ../.env
+    depends_on:
+      - db-washer
+      - mosquitto
+    networks:
+      - washer_net
+
+# Jaringan internal otomatis
+networks:
+  washer_net:
+    driver: bridge
+
+# Volume untuk persistensi data database
+volumes:
+  washer_db_data:

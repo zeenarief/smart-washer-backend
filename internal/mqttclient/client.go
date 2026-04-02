@@ -12,6 +12,8 @@ import (
 // InitMQTT menginisialisasi koneksi ke broker Mosquitto
 func InitMQTT() mqtt.Client {
 	broker := os.Getenv("MQTT_BROKER")
+	user := os.Getenv("MQTT_USER")
+	pass := os.Getenv("MQTT_PASS")
 	clientID := os.Getenv("MQTT_CLIENT_ID")
 
 	opts := mqtt.NewClientOptions()
@@ -19,8 +21,10 @@ func InitMQTT() mqtt.Client {
 	opts.SetClientID(clientID)
 
 	// Jika Mosquitto Anda menggunakan username/password nantinya
-	// opts.SetUsername(os.Getenv("MQTT_USER"))
-	// opts.SetPassword(os.Getenv("MQTT_PASS"))
+	if user != "" && pass != "" {
+		opts.SetUsername(user)
+		opts.SetPassword(pass)
+	}
 
 	opts.SetKeepAlive(60 * time.Second)
 	opts.SetPingTimeout(1 * time.Second)
