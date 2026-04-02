@@ -47,7 +47,8 @@ func (s *deviceService) RegisterDevice(userID, macAddress, name string) (*models
 		UserID:     userID,
 		MacAddress: macAddress,
 		Name:       name,
-		Status:     "IDLE",
+		WashStatus: "IDLE",
+		SpinStatus: "IDLE",
 		LastSeen:   time.Now(),
 	}
 
