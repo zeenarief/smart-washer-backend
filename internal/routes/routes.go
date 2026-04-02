@@ -39,7 +39,8 @@ func SetupRoutes(router *gin.Engine, authHandler *handlers.AuthHandler, deviceHa
 			{
 				controlGroup.POST("/wash", controlHandler.StartWash)
 				controlGroup.POST("/spin", controlHandler.StartSpin)
-				controlGroup.POST("/stop/:mac_address", controlHandler.StopMachine)
+				controlGroup.POST("/stop/wash/:mac_address", controlHandler.StopWash)
+				controlGroup.POST("/stop/spin/:mac_address", controlHandler.StopSpin)
 			}
 		}
 	}

@@ -12,7 +12,7 @@ import (
 
 type ControlService interface {
 	StartSession(macAddress string, sessionType string, duration int) (*models.WashSession, error)
-	StopSession(macAddress string) error
+	StopSession(macAddress string, sessionType string) error
 }
 
 type controlService struct {
@@ -25,20 +25,17 @@ func NewControlService(dr repositories.DeviceRepository, sr repositories.Session
 	return &controlService{deviceRepo: dr, sessionRepo: sr, mqttClient: mc}
 }
 
-// Struct untuk payload MQTT internal
 type mqttPayload struct {
 	Command  string `json:"cmd"`
 	Duration int    `json:"dur"`
 }
 
 func (s *controlService) StartSession(macAddress string, sessionType string, duration int) (*models.WashSession, error) {
-	// 1. Cek apakah device ada
 	_, err := s.deviceRepo.FindByMac(macAddress)
 	if err != nil {
 		return nil, errors.New("device tidak ditemukan")
 	}
 
-	// 2. Kirim perintah via MQTT
 	cmd := "wash"
 	if sessionType == "SPIN" {
 		cmd = "spin"
@@ -51,7 +48,6 @@ func (s *controlService) StartSession(macAddress string, sessionType string, dur
 		return nil, errors.New("gagal mengirim perintah ke device via MQTT")
 	}
 
-	// 3. Catat di DB
 	session := &models.WashSession{
 		DeviceID:        macAddress,
 		SessionType:     sessionType,
@@ -62,29 +58,37 @@ func (s *controlService) StartSession(macAddress string, sessionType string, dur
 
 	s.sessionRepo.Create(session)
 
-	// 4. Update status Device
-	newStatus := "WASHING"
-	if sessionType == "SPIN" {
-		newStatus = "SPINNING"
+	if sessionType == "WASH" {
+		s.deviceRepo.UpdateWashStatus(macAddress, "WASHING")
+	} else if sessionType == "SPIN" {
+		s.deviceRepo.UpdateSpinStatus(macAddress, "SPINNING")
 	}
-	s.deviceRepo.UpdateStatus(macAddress, newStatus)
 
 	return session, nil
 }
 
-func (s *controlService) StopSession(macAddress string) error {
-	// Kirim perintah stop via MQTT
-	payload, _ := json.Marshal(mqttPayload{Command: "stop", Duration: 0})
+func (s *controlService) StopSession(macAddress string, sessionType string) error {
+	// 1. Tentukan command MQTT berdasarkan tipe
+	cmd := "stop_wash"
+	if sessionType == "SPIN" {
+		cmd = "stop_spin"
+	}
+
+	payload, _ := json.Marshal(mqttPayload{Command: cmd, Duration: 0})
 	topic := "mesincuci/" + macAddress + "/command"
 
 	if token := s.mqttClient.Publish(topic, 1, false, payload); token.Wait() && token.Error() != nil {
-		return errors.New("gagal mengirim perintah stop via MQTT")
+		return errors.New("gagal mengirim perintah stop ke " + sessionType)
 	}
 
-	// Update DB: Hentikan sesi yang aktif dan set device ke IDLE
+	// 2. Update Database Sesi
 	now := time.Now()
 	s.sessionRepo.UpdateStatusByDeviceMAC(macAddress, "INTERRUPTED", &now)
-	s.deviceRepo.UpdateStatus(macAddress, "IDLE")
 
-	return nil
+	// 3. Update Status Device secara spesifik
+	if sessionType == "WASH" {
+		return s.deviceRepo.UpdateWashStatus(macAddress, "IDLE")
+	} else {
+		return s.deviceRepo.UpdateSpinStatus(macAddress, "IDLE")
+	}
 }

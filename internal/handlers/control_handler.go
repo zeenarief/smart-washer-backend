@@ -48,14 +48,23 @@ func (h *ControlHandler) processSession(c *gin.Context, sessionType string) {
 	})
 }
 
-func (h *ControlHandler) StopMachine(c *gin.Context) {
+func (h *ControlHandler) StopWash(c *gin.Context) {
+	h.processStop(c, "WASH")
+}
+
+func (h *ControlHandler) StopSpin(c *gin.Context) {
+	h.processStop(c, "SPIN")
+}
+
+// Helper untuk proses stop
+func (h *ControlHandler) processStop(c *gin.Context, sessionType string) {
 	macAddress := c.Param("mac_address")
 
-	err := h.service.StopSession(macAddress)
+	err := h.service.StopSession(macAddress, sessionType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Mesin cuci berhasil dihentikan"})
+	c.JSON(http.StatusOK, gin.H{"message": "Tabung " + sessionType + " berhasil dihentikan"})
 }
